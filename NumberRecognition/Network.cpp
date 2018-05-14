@@ -19,17 +19,14 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 		}
 	}
 
+	//https://theclevermachine.wordpress.com/2014/09/06/derivation-error-backpropagation-gradient-descent-for-neural-networks/
+	//https://stackoverflow.com/questions/35000215/neural-net-bias-per-layer-or-per-node-non-input-node
+	//https://github.com/huangzehao/SimpleNeuralNetwork/blob/master/src/neural-net.cpp
 	//Initilize nodes
 	nodes = new double*[layerCount];
 	for (uint i = 0; i < layerCount; i++) {
 		nodes[i] = new double[topology[i]];
 		memset(nodes[i], 0, sizeof(double) * topology[i]);
-	}
-
-	//Initilize biases
-	biases = new double[layerCount - 1];
-	for (uint i = 0; i < layerCount - 1; i++) {
-		biases[i] = RandomNumber();
 	}
 
 	//Printing debug info
@@ -76,10 +73,10 @@ void Network::FeedForawrd(double* input) {
 	for (uint i = 0; i < layerCount - 1; i++) {
 		for (uint j = 0; j < topology[i + 1]; j++) {
 			for (uint k = 0; k < topology[i]; k++) {
-				nodes[i + 1][j] += weights[i][j][k] * nodes[i][k];
+				nodes[i + 1][j] += weights[i][j][k] * nodes[i][k] + biases[i][k];
 			}
 
-			nodes[i + 1][j] = Sigmoid(nodes[i + 1][j] + biases[i]);
+			nodes[i + 1][j] = Sigmoid(nodes[i + 1][j]);
 		}
 	}
 }
@@ -99,18 +96,18 @@ void Network::BackProp(double* expected) {
 	// Calculate the gradient for the output layer then the hidden layers
 	// I think it can be all put together but maybe not the video make it seem like it was suppost to be
 
-	for (uint i = 0; i < topology[layerCount - 1]; i++) {
-		double delta = expected[i] - nodes[layerCount - 1][i];
-		gradient[layerCount - 1][]
+	uint L = layerCount - 1;
+
+	for (uint j = 0; j < topology[L]; j++) {
+		double error = nodes[L][j] - expected[j];
+		double dSig = SigmoidDerivative(nodes[L][j]);
+		double zk = nodes[L][j];
+		for (uint k = 0; k < topology[L - 1]; k++) {
+			double aj = nodes[L - 1][k];
+			gradient[L - 1][j][k] = error * dSig * zk * aj;
+			std::cout << gradient[L - 1][j][k] << std::endl;
+		}
 	}
-
-
-
-
-
-
-
-
 
 	/*
 	for (uint L = layerCount - 1; L > 0; L--) {
@@ -120,7 +117,7 @@ void Network::BackProp(double* expected) {
 				double dzLj_dwLjk = nodes[L - 1][k];
 
 				double daLj_dzLj = SigmoidDerivative(nodes[L][j]);
-			
+
 				double dc_daLj = CostDerivative(nodes[layerCount - 1], expected, topology[layerCount - 1]);
 
 				double dc_dwLjk = dzLj_dwLjk * daLj_dzLj * dc_daLj;

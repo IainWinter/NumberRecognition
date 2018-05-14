@@ -29,7 +29,7 @@ int ReverseInt(int i) {
 }
 
 void ReadMNIST(double** images, double** labels) {
-	std::ifstream images_file("D:\\dev\\code\\c++\\MACHINE_LEARNING\\NumberRecognition\\NumberRecognition\\Data\\images", std::ios::binary);
+	std::ifstream images_file("Data\\images", std::ios::binary);
 	if (images_file.is_open()) {
 		int magic_number = 0;
 		int number_of_images = 0;
@@ -54,7 +54,7 @@ void ReadMNIST(double** images, double** labels) {
 		}
 	}
 
-	std::ifstream labels_file("D:\\dev\\code\\c++\\MACHINE_LEARNING\\NumberRecognition\\NumberRecognition\\Data\\labels", std::ios::binary);
+	std::ifstream labels_file("Data\\labels", std::ios::binary);
 	if (labels_file.is_open()) {
 		int magic_number = 0;
 		int number_of_images = 0;
