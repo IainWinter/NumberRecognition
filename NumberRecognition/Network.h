@@ -4,6 +4,7 @@
 class Network {
 private:
 	double*** weights; //Array of matrixes (2d array)
+	double** biases;
 	double** nodes;
 	const uint* topology;
 	const uint layerCount;

@@ -8,19 +8,25 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 	//Initilize weights and biases
 	weights = new double**[layerCount - 1];
 	for (uint L = 0; L < layerCount - 1; L++) {
-		uint crntCount = L == 0 ? topology[L] : 2 * topology[L];
+		uint crntCount = topology[L];
 		uint nextCount = topology[L + 1];
 		weights[L] = new double*[nextCount];
 
 		for (uint j = 0; j < nextCount; j++) {
 			weights[L][j] = new double[crntCount];
 			for (uint k = 0; k < crntCount; k++) {
-				if (L != 0 && k % 2 == 1) {
-					weights[L][j][k] = 1;
-				} else {
-					weights[L][j][k] = 0;
-				}
+				weights[L][j][k] = RandomNumber();
 			}
+		}
+	}
+
+
+	//Initilizing biases
+	biases = new double*[layerCount - 1];
+	for (uint L = 0; L < layerCount - 1; L++) {
+		biases[L] = new double[topology[L + 1]];
+		for (uint i = 0; i < topology[L + 1]; i++) {
+			biases[L][i] = RandomNumber();
 		}
 	}
 
@@ -67,24 +73,19 @@ Network::~Network() {
 void Network::FeedForawrd(double* input) {
 	std::copy(input, input + topology[0], nodes[0]);
 
-	//This is all wrong
-
 	for (uint L = 0; L < layerCount - 1; L++) {
-		bool layerHasBias = L != 0;
-		uint delta = layerHasBias ? 2 : 1;
+
 		for (uint j = 0; j < topology[L + 1]; j++) {
-			for (uint k = 0; k < topology[L]; k += delta) {
+			for (uint k = 0; k < topology[L]; k++) {
 				nodes[L + 1][j] += weights[L][j][k] * nodes[L][k];
+
+				std::cout << "W:" << j << " "<< k << ":" << weights[L][j][k] << " * " << "N:" << k << ":" << nodes[L][k] << std::endl;
 			}
 
-			if (layerHasBias) {
-				for (uint k = 1; k < topology[L]; k += delta) {
-					nodes[L + 1][j] += weights[L][j][k];
-				}
-			}
-
-			nodes[L + 1][j] = Sigmoid(nodes[L + 1][j]);
+			std::cout << "Sig(" << "N:" << j << ":" << nodes[L + 1][j] << "+" << "B:" << j << ":" << biases[L][j] << std::endl << std::endl;
+			nodes[L + 1][j] = Sigmoid(nodes[L + 1][j] + biases[L][j]);
 		}
+		std::cout << std::endl;
 	}
 }
 
