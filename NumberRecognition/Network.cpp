@@ -5,16 +5,21 @@
 #include <memory>
 
 Network::Network(uint* topology, uint layerCount) : topology(topology), layerCount(layerCount) {
-	//Initilize weights
+	//Initilize weights and biases
 	weights = new double**[layerCount - 1];
-	for (uint i = 0; i < layerCount - 1; i++) {
-		uint crntCount = topology[i];
-		uint nextCount = topology[i + 1];
-		weights[i] = new double*[nextCount];
+	for (uint L = 0; L < layerCount - 1; L++) {
+		uint crntCount = L == 0 ? topology[L] : 2 * topology[L];
+		uint nextCount = topology[L + 1];
+		weights[L] = new double*[nextCount];
+
 		for (uint j = 0; j < nextCount; j++) {
-			weights[i][j] = new double[crntCount];
+			weights[L][j] = new double[crntCount];
 			for (uint k = 0; k < crntCount; k++) {
-				weights[i][j][k] = RandomNumber();
+				if (L != 0 && k % 2 == 1) {
+					weights[L][j][k] = 1;
+				} else {
+					weights[L][j][k] = 0;
+				}
 			}
 		}
 	}
@@ -24,59 +29,61 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 	//https://github.com/huangzehao/SimpleNeuralNetwork/blob/master/src/neural-net.cpp
 	//Initilize nodes
 	nodes = new double*[layerCount];
-	for (uint i = 0; i < layerCount; i++) {
-		nodes[i] = new double[topology[i]];
-		memset(nodes[i], 0, sizeof(double) * topology[i]);
+	for (uint L = 0; L < layerCount; L++) {
+		nodes[L] = new double[topology[L]];
+		memset(nodes[L], 0, sizeof(double) * topology[L]);
 	}
 
 	//Printing debug info
-
-	/*
-	std::cout << "Weights" << std::endl;
-	for (size_t i = 0; i < layerCount - 1; i++) {
-	std::cout << "Layer " << i << " to " << i + 1 << std::endl;
-	for (size_t j = 0; j < topology[i + 1]; j++) {
-	for (size_t k = 0; k < topology[i]; k++) {
-	std::cout << weights[i][j][k] << " ";
-	}
-	std::cout << std::endl;
-	}
-	std::cout << std::endl;
-	}
-
-	std::cout << "Biases" << std::endl;
-	for (size_t i = 0; i < layerCount - 1; i++) {
-	std::cout << biases[i] << " ";
-	}
-	*/
+	//std::cout << "Weights" << std::endl;
+	//for (uint L = 0; L < layerCount - 1; L++) {
+	//	uint crntCount = L == 0 ? topology[L] : 2 * topology[L];
+	//	uint nextCount = topology[L + 1];
+	//	for (uint j = 0; j < nextCount; j++) {
+	//		for (uint k = 0; k < crntCount; k++) {
+	//			std::cout << weights[L][j][k] << " ";
+	//		}
+	//		std::cout << std::endl;
+	//	}
+	//	std::cout << std::endl;
+	//}
 }
 
 Network::~Network() {
-	for (uint i = 0; i < layerCount - 1; i++) {
-		for (uint j = 0; j < topology[i + 1]; j++) {
-			delete[] weights[i][j];
+	for (uint L = 0; L < layerCount - 1; L++) {
+		for (uint j = 0; j < topology[L + 1]; j++) {
+			delete[] weights[L][j];
 		}
 
-		delete[] weights[i];
-		delete[] nodes[i];
+		delete[] weights[L];
+		delete[] nodes[L];
 	}
 
 	delete[] weights;
 	delete[] nodes;
-	delete[] biases;
 	delete[] topology;
 }
 
 void Network::FeedForawrd(double* input) {
 	std::copy(input, input + topology[0], nodes[0]);
 
-	for (uint i = 0; i < layerCount - 1; i++) {
-		for (uint j = 0; j < topology[i + 1]; j++) {
-			for (uint k = 0; k < topology[i]; k++) {
-				nodes[i + 1][j] += weights[i][j][k] * nodes[i][k] + biases[i][k];
+	//This is all wrong
+
+	for (uint L = 0; L < layerCount - 1; L++) {
+		bool layerHasBias = L != 0;
+		uint delta = layerHasBias ? 2 : 1;
+		for (uint j = 0; j < topology[L + 1]; j++) {
+			for (uint k = 0; k < topology[L]; k += delta) {
+				nodes[L + 1][j] += weights[L][j][k] * nodes[L][k];
 			}
 
-			nodes[i + 1][j] = Sigmoid(nodes[i + 1][j]);
+			if (layerHasBias) {
+				for (uint k = 1; k < topology[L]; k += delta) {
+					nodes[L + 1][j] += weights[L][j][k];
+				}
+			}
+
+			nodes[L + 1][j] = Sigmoid(nodes[L + 1][j]);
 		}
 	}
 }
