@@ -15,7 +15,7 @@ public:
 void NetworkTrainer::Train(Network& network, double** input, double** expected, uint trials) {
 	for (uint i = 0; i < trials; i++) {
 		network.FeedForawrd(input[i]);
-		//network.BackProp(expected[i]);
+		network.BackProp(expected[i]);
 	}
 }
 
@@ -80,28 +80,39 @@ int main() {
 	srand(time(NULL));
 
 	uint* topology = new uint[4]{
-		784, 16, 16, 10
+		4, 2, 2, 1
 	};
 
 	Network network(topology, 4);
 
-	double** images = new double*[10000];
-	for (size_t i = 0; i < 10000; i++) {
-		images[i] = new double[784];
-	}
+	double* in = new double[4]{
+		1, 2, 3, 4
+	};
 
-	double** labels = new double*[10000];
-	for (size_t i = 0; i < 10000; i++) {
-		labels[i] = new double[10];
-	}
+	double* out = new double[1]{
+		1
+	};
 
-	ReadMNIST(images, labels);
+	network.FeedForawrd(in);
+	network.BackProp(out);
 
-	std::cout << "Loaded symboles" << std::endl;
+	//double** images = new double*[10000];
+	//for (size_t i = 0; i < 10000; i++) {
+	//	images[i] = new double[784];
+	//}
 
-	NetworkTrainer trainer = NetworkTrainer();
+	//double** labels = new double*[10000];
+	//for (size_t i = 0; i < 10000; i++) {
+	//	labels[i] = new double[10];
+	//}
 
-	trainer.Train(network, images, labels, 1);
+	//ReadMNIST(images, labels);
+
+	//std::cout << "Loaded symboles" << std::endl;
+
+	//NetworkTrainer trainer = NetworkTrainer();
+
+	//trainer.Train(network, images, labels, 1);
 
 	std::cin.get();
 }
