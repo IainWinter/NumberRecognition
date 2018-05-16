@@ -98,20 +98,17 @@ void Network::FeedForawrd(double* input) {
 }
 
 void Network::BackProp(double* expected) {
-	double dC = CostDerivative(nodes[layerCount - 1], expected, topology[layerCount - 1]);
-
-	// Loop backwards through layers
-	// Look at notes in book
-
-	for (uint L = layerCount - 1; L >= 0; L--) {
-		for (uint k = 0; k < topology[L - 1]; k++) {
-			nodes[L - 1][k] = 0;
-			for (uint j = 0; j < topology[L]; j++) {
-				double dSig = SigmoidDerivative(nodes[L][j]);
-				nodes[L - 1][k] += weights[L][j][k] * dSig * dC;
-			}
-		}
+	double** expectedNodes = new double*[layerCount - 2];
+	for (uint L = 0; L < layerCount - 2; L++) {
+		expectedNodes[L] = new double[topology[L + 1]];
+		memset(expectedNodes[L], 0, sizeof(double) * topology[L + 1]);
 	}
+
+	//double cost = CostDerivative(nodes[layerCount - 1], expected, topology[layerCount - 1]);
+
+	//for (uint L = layerCount - 1; L > 0; L++) {
+	//	double layerCost = CostDerivative(nodes);
+	//}
 }
 
 //void Network::BackProp(double* expected) {
