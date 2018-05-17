@@ -98,10 +98,22 @@ void Network::FeedForawrd(double* input) {
 }
 
 void Network::BackProp(double* expected) {
-	double** expectedNodes = new double*[layerCount - 2];
+	double** expectedNodes = new double*[layerCount - 1];
 	for (uint L = 0; L < layerCount - 2; L++) {
 		expectedNodes[L] = new double[topology[L + 1]];
 		memset(expectedNodes[L], 0, sizeof(double) * topology[L + 1]);
+	}
+
+	std::copy(expected, expected + topology[0], expectedNodes[layerCount - 2]);
+
+	for (uint L = layerCount - 1; L > 0; L--) {
+		double cost = CostDerivative(nodes[L], expectedNodes[L - 1], topology[L]);
+		for (uint k = 0; k < topology[L - 1]; k++) {
+			for (uint j = 0; j < topology[L]; j++) {
+
+			}
+		}
+		
 	}
 
 	//double cost = CostDerivative(nodes[layerCount - 1], expected, topology[layerCount - 1]);
