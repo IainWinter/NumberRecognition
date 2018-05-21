@@ -93,8 +93,11 @@ int main() {
 		1
 	};
 
-	network.FeedForawrd(in);
-	network.BackProp(out);
+	for (uint i = 0; i < 40; i++) {
+		network.FeedForawrd(in);
+		network.BackProp(out);
+	}
+
 
 	//double** images = new double*[10000];
 	//for (size_t i = 0; i < 10000; i++) {
