@@ -90,12 +90,13 @@ int main() {
 	};
 
 	double* out = new double[1]{
-		1
+		.5
 	};
 
-	for (uint i = 0; i < 40; i++) {
+	for (uint i = 0; i < 1000; i++) {
 		network.FeedForawrd(in);
 		network.BackProp(out);
+		std::cin.get();
 	}
 
 

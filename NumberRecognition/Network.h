@@ -14,11 +14,11 @@ public:
 	void FeedForawrd(double* input);
 	void BackProp(double* expected);
 
-	inline const uint* Topology() const {
-		return topology;
-	}
+	//inline const uint* Topology() const {
+	//	return topology;
+	//}
 
-	inline const uint LayerCount() const {
-		return layerCount;
-	}
+	//inline const uint LayerCount() const {
+	//	return layerCount;
+	//}
 };

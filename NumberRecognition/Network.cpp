@@ -12,7 +12,7 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 		for (uint j = 0; j < topology[L + 1]; j++) {
 			weights[L][j] = new double[topology[L]];
 			for (uint k = 0; k < topology[L]; k++) {
-				weights[L][j][k] = j + k; //RandomNumber();
+				weights[L][j][k] = L + j + k; //RandomNumber();
 			}
 		}
 	}
@@ -23,7 +23,7 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 	for (uint L = 0; L < layerCount - 1; L++) {
 		biases[L] = new double[topology[L + 1]];
 		for (uint i = 0; i < topology[L + 1]; i++) {
-			biases[L][i] = i; //RandomNumber();
+			biases[L][i] = L + i; //RandomNumber();
 		}
 	}
 
@@ -79,13 +79,21 @@ void Network::FeedForawrd(double* input) {
 	std::copy(input, input + topology[0], nodes[0]);
 	for (uint L = 0; L < layerCount - 1; L++) {
 		std::cout << "Layer " << L << " to " << L + 1 << std::endl;
+		bool isInputLayer = L == 0;
 		for (uint j = 0; j < topology[L + 1]; j++) {
+			nodes[L + 1][j] = 0; // Make sure that node is zeroed.
 			for (uint k = 0; k < topology[L]; k++) {
-				std::cout << "Node: " << L + 1 << j << ": " << nodes[L + 1][j] << " += " <<
-					"Weight: " << L << j << k << ": " << weights[L][j][k] << " * " <<
-					"Sig(Node: " << L << k << ": " << nodes[L][k] << ")" << std::endl;
-
-				nodes[L + 1][j] += weights[L][j][k] * Sigmoid(nodes[L][k]);
+				if (isInputLayer) {
+					std::cout << "Node: " << L + 1 << j << ": " << nodes[L + 1][j] << " += " <<
+						"Weight: " << L << j << k << ": " << weights[L][j][k] << " * " <<
+						"Node: " << L << k << ": " << nodes[L][k] << std::endl;
+					nodes[L + 1][j] += weights[L][j][k] * nodes[L][k];
+				} else {
+					std::cout << "Node: " << L + 1 << j << ": " << nodes[L + 1][j] << " += " <<
+						"Weight: " << L << j << k << ": " << weights[L][j][k] << " * " <<
+						"Sig(Node: " << L << k << ": " << nodes[L][k] << ")" << std::endl;
+					nodes[L + 1][j] += weights[L][j][k] * Sigmoid(nodes[L][k]);
+				}
 			}
 
 			std::cout << "Node: " << L + 1 << j << ": " << nodes[L + 1][j] << " += " << "Bias: " << j << ": " << biases[L][j] << std::endl;
@@ -121,40 +129,39 @@ void Network::BackProp(double* expected) {
 	}
 	std::copy(expected, expected + topology[layerCount - 1], deltaNodes[layerCount - 2]);
 
-	for (uint i = 0; i < layerCount - 1; i++) {
-		uint L = layerCount - 1 - i;
+	for (uint i = 1; i < layerCount; i++) {
+		uint L = layerCount - i;
+		bool notInputLayer = L != 1;
+		for (uint k = 0; k < topology[L - 1]; k++) {
+			double r, s;
+			double t = 1, sum = 0;
+			double q = nodes[L - 1][k];
+			for (uint j = 0; j < topology[L]; j++) {
+				double u = weights[L - 1][j][k];
+				r = SigmoidDerivative(nodes[L][j]);
+				s = CostDerivative(nodes[L], deltaNodes[L - 1], topology[L]);
+				deltaBiases[L - 1][j] = t * r * s;
+				deltaWeights[L - 1][j][k] = q * r * s;
+				sum += u * r * s;
+			}
+
+			if (notInputLayer) {
+				deltaNodes[L - 2][k] = sum;
+			}
+		}
 	}
-
-	//for (uint i = 0; i < layerCount - 1; i++) {
-	//	uint L = layerCount - i - 1;
-	//	bool hasDeltaNode = i + 2 < layerCount;
-	//	for (uint k = 0; k < topology[L - 1]; k++) {
-	//		double r, s, sum = 0;
-	//		for (uint j = 0; j < topology[L]; j++) {
-	//			r = SigmoidDerivative(nodes[L][j]);
-	//			s = CostDerivative(nodes[L], deltaNodes[L - 1], topology[L]); // L - 1 because
-	//			deltaBiases[L - 1][j] = r * s;						 		  // these arrays dont
-	//			deltaWeights[L - 1][j][k] = r * s * nodes[L - 1][k];     	  // have input / output
-	//			sum += weights[L - 1][j][k] * r * s;						  // layers
-	//		}
-
-	//		if (hasDeltaNode) {
-	//			deltaNodes[L - 2][k] = sum; // L - 2 because the array doesn' have input / output layers like 'nodes'
-	//		}
-	//	}
-	//}
 
 	for (uint L = 0; L < layerCount - 1; L++) {
 		for (uint j = 0; j < topology[L + 1]; j++) {
 			for (uint k = 0; k < topology[L]; k++) {
-				weights[L][j][k] += deltaWeights[L][j][k];
+				weights[L][j][k] -= deltaWeights[L][j][k];
 			}
 		}
 	}
 
 	for (uint L = 0; L < layerCount - 1; L++) {
 		for (uint i = 0; i < topology[L + 1]; i++) {
-			biases[L][i] += deltaBiases[L][i];
+			biases[L][i] -= deltaBiases[L][i];
 		}
 	}
 
@@ -189,7 +196,44 @@ void Network::BackProp(double* expected) {
 			}
 			std::cout << std::endl;
 		}
+
+		std::cout << std::endl << "New weights and biases:" << std::endl;
+
+		std::cout << "Weights:" << std::endl;
+		for (uint L = 0; L < layerCount - 1; L++) {
+			std::cout << "Layer " << L << " to " << L + 1 << std::endl;
+			for (uint j = 0; j < topology[L + 1]; j++) {
+				for (uint k = 0; k < topology[L]; k++) {
+					std::cout << weights[L][j][k] << " ";
+				}
+				std::cout << std::endl;
+			}
+			std::cout << std::endl;
+		}
+
+		std::cout << std::endl << "Biases:" << std::endl;
+		for (uint L = 0; L < layerCount - 1; L++) {
+			std::cout << "Layer " << L << " to " << L + 1 << std::endl;
+			for (uint i = 0; i < topology[L + 1]; i++) {
+				std::cout << biases[L][i] << " ";
+			}
+			std::cout << std::endl << std::endl;
+		}
 	}
+
+	for (uint L = 0; L < layerCount - 1; L++) {
+		for (uint j = 0; j < topology[L + 1]; j++) {
+			delete[] deltaWeights[L][j];
+		}
+
+		delete[] deltaNodes[L];
+		delete[] deltaBiases[L];
+		delete[] deltaWeights[L];
+	}
+
+	delete deltaNodes;
+	delete deltaBiases;
+	delete deltaWeights;
 }
 
 //void Network::BackProp2(double* expected) {
