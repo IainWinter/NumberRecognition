@@ -15,7 +15,7 @@ double RandomNumber() {
 double Cost(double* output, double* expected, uint count) {
 	double cost = 0;
 	for (uint i = 0; i < count; i++) {
-		double delta = (Sigmoid(output[i]) - expected[i]);
+		double delta = (output[i] - expected[i]);
 		cost += delta * delta;
 	}
 
@@ -25,7 +25,7 @@ double Cost(double* output, double* expected, uint count) {
 double CostDerivative(double* output, double* expected, uint count) {
 	double cost = 0;
 	for (uint i = 0; i < count; i++) {
-		cost += 2 * (Sigmoid(output[i]) - expected[i]);
+		cost += 2 * (output[i] - expected[i]);
 	}
 
 	return cost;

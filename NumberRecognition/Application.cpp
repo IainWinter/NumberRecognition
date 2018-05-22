@@ -13,10 +13,15 @@ public:
 };
 
 void NetworkTrainer::Train(Network& network, double** input, double** expected, uint trials) {
-	for (uint i = 0; i < trials; i++) {
-		network.FeedForawrd(input[i]);
-		network.BackProp(expected[i]);
+	double cost = 0;
+	for (uint i = 0; i < trials / 100; i++) {
+		for (uint j = 0; j < 100; j++) {
+			network.FeedForawrd(input[i * 100 + j]);
+			cost += network.BackPropAndTrain(expected[i * 100 + j]);
+		}
+		std::cout << "Trial run: " << i * 100 << " " << cost / (i * 100) << std::endl;
 	}
+	std::cout << "Average cost: " << cost / 10000 << std::endl;
 }
 
 int ReverseInt(int i) {
@@ -80,43 +85,28 @@ int main() {
 	srand(time(NULL));
 
 	uint* topology = new uint[4]{
-		4, 2, 2, 1
+		784, 16, 16, 10
 	};
 
 	Network network(topology, 4);
 
-	double* in = new double[4]{
-		1, 2, 3, 4
-	};
-
-	double* out = new double[1]{
-		.5
-	};
-
-	for (uint i = 0; i < 1000; i++) {
-		network.FeedForawrd(in);
-		network.BackProp(out);
-		std::cin.get();
+	double** images = new double*[10000];
+	for (size_t i = 0; i < 10000; i++) {
+		images[i] = new double[784];
 	}
 
+	double** labels = new double*[10000];
+	for (size_t i = 0; i < 10000; i++) {
+		labels[i] = new double[10];
+	}
 
-	//double** images = new double*[10000];
-	//for (size_t i = 0; i < 10000; i++) {
-	//	images[i] = new double[784];
-	//}
+	ReadMNIST(images, labels);
 
-	//double** labels = new double*[10000];
-	//for (size_t i = 0; i < 10000; i++) {
-	//	labels[i] = new double[10];
-	//}
+	std::cout << "loaded symboles" << std::endl;
 
-	//ReadMNIST(images, labels);
+	NetworkTrainer trainer = NetworkTrainer();
 
-	//std::cout << "Loaded symboles" << std::endl;
-
-	//NetworkTrainer trainer = NetworkTrainer();
-
-	//trainer.Train(network, images, labels, 1);
+	trainer.Train(network, images, labels, 10000);
 
 	std::cin.get();
 }

@@ -8,17 +8,10 @@ private:
 	double** nodes;
 	const uint* topology;
 	const uint layerCount;
+	void BackProp(double* expected, double*** deltaWeights, double** deltaBiases);
 public:
 	Network(uint* topology, uint layerCount);
 	~Network();
 	void FeedForawrd(double* input);
-	void BackProp(double* expected);
-
-	//inline const uint* Topology() const {
-	//	return topology;
-	//}
-
-	//inline const uint LayerCount() const {
-	//	return layerCount;
-	//}
+	double BackPropAndTrain(double* expected);
 };
