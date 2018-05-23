@@ -1,8 +1,5 @@
-#pragma warning(disable:4996) //For the std::copy 
-
 #include "Network.h"
 #include <iostream>
-#include <memory>
 
 Network::Network(uint* topology, uint layerCount) : topology(topology), layerCount(layerCount) {
 	//Initilize weights and biases
@@ -17,7 +14,6 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 		}
 	}
 
-
 	//Initilizing biases
 	biases = new double*[layerCount - 1];
 	for (uint L = 0; L < layerCount - 1; L++) {
@@ -29,9 +25,10 @@ Network::Network(uint* topology, uint layerCount) : topology(topology), layerCou
 
 	//Initilize nodes
 	nodes = new double*[layerCount];
+	activations = new double*[layerCount];
 	for (uint L = 0; L < layerCount; L++) {
 		nodes[L] = new double[topology[L]];
-		memset(nodes[L], 0, sizeof(double) * topology[L]);
+		activations[L] = new double[topology[L]];
 	}
 }
 
@@ -42,104 +39,136 @@ Network::~Network() {
 		}
 
 		delete[] weights[L];
+		delete[] activations[L];
 		delete[] nodes[L];
 	}
 
 	delete[] weights;
+	delete[] activations;
 	delete[] nodes;
 	delete[] topology;
 }
 
 void Network::FeedForawrd(double* input) {
-	std::copy(input, input + topology[0], nodes[0]);
+	for (uint i = 0; i < topology[0]; i++) {
+		activations[0][i] = input[i];
+		nodes[0][i] = input[i];
+	}
+
 	for (uint L = 0; L < layerCount - 1; L++) {
 		for (uint j = 0; j < topology[L + 1]; j++) {
-			nodes[L + 1][j] = 0; // Make sure that node is zeroed.
+			nodes[L + 1][j] = Dot(weights[L][j], activations[L], topology[L]) + biases[L][j];
+			activations[L + 1][j] = Sigmoid(nodes[L + 1][j]);
+
+			//Debug("Node[" << L << ", " << j << "] " << nodes[L][j] << " "
+				//<< "Activation[" << L << ", " << j << "] " << activations[L][j] << " "
+				//<< "Weight[" << L << ", " << j << ", 0] " << weights[L][j][0] << std::endl);
+		}
+	}
+}
+
+void Network::Train(double** input, double** expected, uint trials, uint batch) {
+	double*** weightGrad = new double**[layerCount - 1];
+	for (uint L = 0; L < layerCount - 1; L++) {
+		weightGrad[L] = new double*[topology[L + 1]];
+		for (uint j = 0; j < topology[L + 1]; j++) {
+			weightGrad[L][j] = new double[topology[L]];
 			for (uint k = 0; k < topology[L]; k++) {
-				nodes[L + 1][j] += weights[L][j][k] * nodes[L][k];
+				weightGrad[L][j][k] = 0;
 			}
-
-			nodes[L + 1][j] = Sigmoid(nodes[L + 1][j] + biases[L][j]);
 		}
 	}
-}
 
-void Network::BackProp(double* expected, double*** deltaWeights, double** deltaBiases) {
-
-}
-
-double Network::BackPropAndTrain(double* expected) {
-	double*** deltaWeights = new double**[layerCount - 1];
+	double** biasGrad = new double*[layerCount - 1];
 	for (uint L = 0; L < layerCount - 1; L++) {
-		deltaWeights[L] = new double*[topology[L + 1]];
+		biasGrad[L] = new double[topology[L + 1]];
 		for (uint j = 0; j < topology[L + 1]; j++) {
-			deltaWeights[L][j] = new double[topology[L]];
+			biasGrad[L][j] = 0;
 		}
 	}
 
-	double** deltaBiases = new double*[layerCount - 1];
-	for (uint L = 0; L < layerCount - 1; L++) {
-		deltaBiases[L] = new double[topology[L + 1]];
-	}
+	for (uint i = 0; i < trials / batch; i++) {
+		double avgCost = 0;
+		for (uint j = 0; j < batch; j++) {
+			uint index = i * batch + j;
+			FeedForawrd(input[index]);
+			avgCost += BackProp(expected[index], weightGrad, biasGrad);
+		}
 
-	double** deltaNodes = new double*[layerCount - 1];
-	for (uint L = 0; L < layerCount - 1; L++) {
+		Debug("Batch " << i << " of " << trials / batch << " Average cost: " << avgCost / batch << std::endl);
+
+		SubtractGrad(weightGrad, biasGrad, batch);
+	}
+}
+
+double Network::BackProp(double* expected, double*** weightGrad, double** biasGrad) {
+	double** deltaNodes = new double*[layerCount - 2];
+	for (uint L = 0; L < layerCount - 2; L++) {
 		deltaNodes[L] = new double[topology[L + 1]];
 	}
 
-	std::copy(expected, expected + topology[layerCount - 1], deltaNodes[layerCount - 2]);
+	for (uint L = layerCount - 1; L > 1; L--) {
+		double* layerDeltaNodes = L == layerCount - 1 ? expected : deltaNodes[L - 1];
 
-	for (uint i = 1; i < layerCount; i++) {
-		uint L = layerCount - i;
-		bool notInputLayer = L != 1;
 		for (uint k = 0; k < topology[L - 1]; k++) {
-			double r, s;
-			double t = 1, sum = 0;
-			double q = nodes[L - 1][k];
+			double sum = 0;
+			double q = activations[L][k];
 			for (uint j = 0; j < topology[L]; j++) {
 				double u = weights[L - 1][j][k];
-				r = SigmoidDerivative(nodes[L][j]);
-				s = CostDerivative(nodes[L], deltaNodes[L - 1], topology[L]);
-				deltaBiases[L - 1][j] = t * r * s;
-				deltaWeights[L - 1][j][k] = q * r * s;
-				sum += u * r * s;
+				double r = SigmoidDerivative(nodes[L - 1][j]);
+				double s = CostDerivative(activations[L], layerDeltaNodes, topology[L]);
+				double rs = r * s;
+				biasGrad[L - 1][j] += rs;
+				weightGrad[L - 1][j][k] += q * rs;
+
+				sum += u * rs;
 			}
 
-			if (notInputLayer) {
-				deltaNodes[L - 2][k] = sum;
-			}
+			deltaNodes[L - 2][k] = sum;
 		}
 	}
 
+	for (uint k = 0; k < topology[0]; k++) {
+		double q = activations[0][k];
+		for (uint j = 0; j < topology[1]; j++) {
+			double r = SigmoidDerivative(nodes[0][j]);
+			double s = CostDerivative(activations[2], deltaNodes[0], topology[1]);
+			double rs = r * s;
+			biasGrad[0][j] += rs;
+			weightGrad[0][j][k] += q * rs;
+		}
+	}
+
+	double cost = Cost(activations[layerCount - 1], expected, topology[layerCount - 1]);
+
+	for (uint L = 0; L < layerCount - 2; L++) {
+		delete[] deltaNodes[L];
+	}
+
+	delete deltaNodes;
+
+	return cost;
+}
+
+void Network::SubtractGrad(double*** weightGrad, double** biasGrad, uint count) {
 	for (uint L = 0; L < layerCount - 1; L++) {
 		for (uint j = 0; j < topology[L + 1]; j++) {
 			for (uint k = 0; k < topology[L]; k++) {
-				weights[L][j][k] -= deltaWeights[L][j][k];
+				std::cout << weights[L][j][k] << " ";
+				weights[L][j][k] -= weightGrad[L][j][k] / count;
+				weightGrad[L][j][k] = 0;
 			}
+			std::cout << std::endl;
 		}
+		std::cout << std::endl;
 	}
 
 	for (uint L = 0; L < layerCount - 1; L++) {
 		for (uint i = 0; i < topology[L + 1]; i++) {
-			biases[L][i] -= deltaBiases[L][i];
+			std::cout << biases[L][i] << " ";
+			biases[L][i] -= biasGrad[L][i] / count;
+			biasGrad[L][i] = 0;
 		}
+		std::cout << std::endl;
 	}
-
-	double cost = Cost(nodes[layerCount - 1], expected, topology[layerCount - 1]);
-
-	for (uint L = 0; L < layerCount - 1; L++) {
-		for (uint j = 0; j < topology[L + 1]; j++) {
-			delete[] deltaWeights[L][j];
-		}
-
-		delete[] deltaNodes[L];
-		delete[] deltaBiases[L];
-		delete[] deltaWeights[L];
-	}
-
-	delete deltaNodes;
-	delete deltaBiases;
-	delete deltaWeights;
-
-	return cost;
 }
